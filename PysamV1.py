@@ -3,6 +3,7 @@ from Bio.Seq import Seq
 
 #Bounds --> (Lower, Upper)
 #chr = "chr" + chromosome no.
+#motif --> must be in lowercase
 def FindRegion(chromosome, Bounds, Motif):
 
     genome = pysam.FastaFile("/home/kevin/Documents/StanfordProjectMaterial/hg19.fa")
@@ -10,35 +11,36 @@ def FindRegion(chromosome, Bounds, Motif):
     Sequence = Sequence.lower()
 
     Motif = Seq(Motif)
-    MotifRepeat = 0
+    strMotif = str(Motif)
+    MotifRepeat = Sequence.count(strMotif)
 
-    ReverseMotif = Motif.reverse_complement()
-    ReverseMotifRepeat = 0
-
-    #Motif Repeat Length
-    base = 0
-    while base < (len(Sequence)-3):
-       curr_chunk = Sequence[base:base+len(Motif)]
-       if curr_chunk == Motif:
-           MotifRepeat += 1
-           base += len(Motif)
-       else:
-           base += 1
-
-    #Reverse Motif Repeat Length
-    base2 = 0
-    while base2 < (len(Sequence)-3):
-       curr_chunk = Sequence[base2:base2+len(ReverseMotif)]
-       if curr_chunk == ReverseMotif:
-           ReverseMotifRepeat += 1
-           base2 += len(ReverseMotif)
-       else:
-           base2 += 1
+    Reverse = Motif.reverse_complement()
+    ReverseMotif = str(Reverse)
+    ReverseMotifRepeat = Sequence.count(ReverseMotif)
 
     if MotifRepeat > ReverseMotifRepeat:
-        return Motif, MotifRepeat
+        return Motif, CountSTRs(Sequence, Motif)
     else:
-        return ReverseMotif, ReverseMotifRepeat
+        return ReverseMotif, CountSTRs(Sequence, ReverseMotif)
+
+print(FindRegion("chr1",(57223282,57223446), "tttc" ))
+
+
+def CountSTRs(sequence, motif):
+    base = 0
+    MotifRepeat = 0
+    while base <= (len(sequence)-len(motif)):
+        curr_chunk = sequence[base:base+len(motif)]
+        if curr_chunk == motif:
+            MotifRepeat += 1
+            base += len(motif)
+        else:
+            base +=1
+    return MotifRepeat
+
+
+
+
 
 '''
 IMPROVEMENTS:
@@ -47,5 +49,6 @@ IMPROVEMENTS:
     - Format the return better
     - More comments
     - combine chromosome and bounds argument?
-    - str.count
-    - Maybe use Karp-Rabin to speed it up?
+    - str.count DONE
+    - Maybe use Karp-Rabin to speed it up? nah
+'''
