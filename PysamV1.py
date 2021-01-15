@@ -23,20 +23,27 @@ def FindRegion(chromosome, Bounds, Motif):
     else:
         return ReverseMotif, CountSTRs(Sequence, ReverseMotif)
 
-print(FindRegion("chr1",(57223282,57223446), "tttc" ))
+print(FindRegion("chr1",(57222577,57224042), "aaag" ))
 
 
 def CountSTRs(sequence, motif):
     base = 0
+    LowerBound = 0
+    HigherBound = 0
     MotifRepeat = 0
     while base <= (len(sequence)-len(motif)):
-        curr_chunk = sequence[base:base+len(motif)]
-        if curr_chunk == motif:
+        CurrChunk = sequence[base:base+len(motif)]
+
+        if CurrChunk == motif:
             MotifRepeat += 1
+            LowerBound = base - (len(motif)*MotifRepeat)
+            HigherBound == base + len(motif) - 1
             base += len(motif)
         else:
             base +=1
-    return MotifRepeat
+
+
+    return MotifRepeat, base
 
 
 
@@ -45,10 +52,8 @@ def CountSTRs(sequence, motif):
 '''
 IMPROVEMENTS:
     - Combine Motif Repeat and Reverse Motif reading process
-    - Use the Pep8 format thing
+    - Use the Pep8 format
     - Format the return better
     - More comments
-    - combine chromosome and bounds argument?
-    - str.count DONE
-    - Maybe use Karp-Rabin to speed it up? nah
+    - Should HigherBound be without the -1?
 '''
