@@ -1,29 +1,25 @@
 import pysam
-from Bio.Seq import Seq
-
-def GetReverseComplement(Motif):
-    Reverse = Motif.reverse_complement()
-    ReverseMotif = str(Reverse)
-    return ReverseMotif
 
 #Bounds --> (Lower, Upper)
 #Chromosome --> "chr" + chromosome no.
 def ExtractGenome(Chromosome, Bounds):
     genome = pysam.FastaFile("/home/kevin/Documents/StanfordProjectMaterial/hg19.fa")
-    Sequence = genome.fetch(reference=Chromosome, start=Bounds[0], end=Bounds[1])
+    #start bound is minus 1 to account for closed-base system
+    Sequence = genome.fetch(reference=Chromosome, start=Bounds[0]-1, end=Bounds[1])
     Sequence = Sequence.lower()
 
     return Sequence
 
+def GetReverseComplement(Motif):
+    ConvertDict = {"a": "t", "c": "g", "g": "c", "t": "a"}
+    return "".join([ConvertDict[base] for base in Motif[::-1]])
+
 #Motif --> must be in lowercase
 def GetCorrectMotif(Sequence, Motif):
 
-    Motif = Seq(Motif)
-    strMotif = str(Motif)
-    MotifRepeat = Sequence.count(strMotif)
+    MotifRepeat = Sequence.count(Motif)
 
-    Reverse = GetReverseComplement(Motif)
-    ReverseMotif = str(Reverse)
+    ReverseMotif = GetReverseComplement(Motif)
     ReverseMotifRepeat = Sequence.count(ReverseMotif)
 
     if MotifRepeat > ReverseMotifRepeat:
@@ -31,33 +27,6 @@ def GetCorrectMotif(Sequence, Motif):
         return strMotif
     else:
         return ReverseMotif
-
-def FindPerfectLength(Sequence, Motif):
-    CurrLocation = 0
-    BestLocation = 0
-
-    CurrLength = 0
-    BestLength = 0
-
-    base = 0
-    while base <= (len(Sequence)-len(Motif)):
-        CurrChunk = Sequence[base:base+len(Motif)]
-
-        if CurrChunk == Motif:
-            CurrLength += 1
-            CurrLocation = base
-            base += len(Motif)
-
-        else:
-            #how to approach equal repeats?
-            if CurrLength >= BestLength:
-                BestLength = CurrLength
-                BestLocation = CurrLocation - len(Motif)*((CurrLength)-1)
-                CurrLength = 0
-
-            base += 1
-    #The longest [insert motif] stretch is:
-    return BestLength
 
 def FindPerfectCoords(Sequence, Motif):
     CurrLocation = 0
@@ -67,86 +36,128 @@ def FindPerfectCoords(Sequence, Motif):
     BestLength = 0
 
     base = 0
-    while base <= (len(Sequence)-len(Motif)):
+    while base <= (len(Sequence)):
         CurrChunk = Sequence[base:base+len(Motif)]
 
         if CurrChunk == Motif:
             CurrLength += 1
             CurrLocation = base
+
             base += len(Motif)
 
         else:
             #how to approach equal repeats?
-            if CurrLength >= BestLength:
+            if CurrLength > BestLength:
                 BestLength = CurrLength
-                BestLocation = CurrLocation - len(Motif)*((CurrLength)-1)
-                CurrLength = 0
+                BestLocation = CurrLocation - (len(Motif))*((CurrLength)-1)
 
+            CurrLength = 0
             base += 1
-    #The longest [insert motif] stretch coordinates are:
-    return (BestLocation, BestLocation+((len(Motif)*BestLength)-1))
 
-#PerfectBounds --> (Lower, Upper)
+    return (BestLocation,((BestLocation+((BestLength)*(len(Motif))))))
+'''
+FOR TESTING CODE ABOVE
+def FindRegion(Chromosome, Bounds, Motif):
+    ReverseComplement = GetReverseComplement(Motif)
+    print("RevComp=", ReverseComplement)
+    Sequence = ExtractGenome(Chromosome,Bounds)
+    print("Sequence:", Sequence)
+    CorrectMotif = GetCorrectMotif(Sequence,Motif)
+    print("CorrectMotif:", CorrectMotif)
+
+    return FindPerfectCoords(Sequence,CorrectMotif)
+print(FindRegion("chr1",(57222577,57224042), "aaag"))
+
+def FindPerfectLength(Sequence, Motif):
+    res = FindPerfectCoords(Sequence,Motif)
+    return (res[1]-res[0])+1
+'''
+def NextKmerLeft(Sequence, LowerBound, CorrectMotif):
+        NextKmerLower = LowerBound - len(CorrectMotif)
+        if NextKmerLower < 0:
+            return None
+        else:
+            return Sequence[NextKmerLower:NextKmerLower+len(CorrectMotif)]
+
 def ApplyHeuristicLeft(Sequence, PerfectBounds, CorrectMotif):
-    CurrChunk = Bounds[0] - len(Motif)
-    MotifChunk = 0
+    LowerBound = PerfectBounds[0]
 
-    base = 0
-    while base <= (len(Sequence)-len(Motif)):
+    while LowerBound >= 0:
+        NextKmer = NextKmerLeft(Sequence, LowerBound, CorrectMotif)
 
-        count = 0
-        while CurrChunk >= 0 and MotifChunk < len(Motif):
-            if Sequence[CurrChunk] == Motif[MotifChunk]:
-                print("here", Sequence[CurrChunk])
-                count += 1
+        if NextKmer == CorrectMotif:
+            NextKmer = NextKmerLeft(Sequence, LowerBound, CorrectMotif)
+            LowerBound -= len(CorrectMotif)
+        else:
+            Minus2Bound = LowerBound -(len(CorrectMotif))
+            if Minus2Bound < 0:
+                return (LowerBound, PerfectBounds[1])
+            KmerMinus2 = NextKmerLeft(Sequence,Minus2Bound,CorrectMotif)
+            if KmerMinus2 == CorrectMotif:
+                LowerBound -= (len(CorrectMotif)*(2))
+            else:
+                return (LowerBound, PerfectBounds[1])
+    return (LowerBound, PerfectBounds[1])
 
-            CurrChunk -= 1
-            MotifChunk += 1
-
-        if count >= len(Motif) + 1:
-            Bounds[0] -= len(Motif)
-            count = 0
-
-        base += len(Motif)
-    return Bounds
-
-#print(ApplyHeuristicLeft("ABCABBABCABC", (6,11), "ABC"))
+def NextKmerRight(Sequence, UpperBound, CorrectMotif):
+        NextKmerUpper = UpperBound + 1
+        if NextKmerUpper >= len(Sequence):
+            return None
+        else:
+            return Sequence[NextKmerUpper:NextKmerUpper+len(CorrectMotif)]
 
 def ApplyHeuristicRight(Sequence, PerfectBounds, CorrectMotif):
-    pass
+    UpperBound = PerfectBounds[1]
+
+    while UpperBound < len(Sequence):
+        NextKmer = NextKmerRight(Sequence, UpperBound, CorrectMotif)
+
+        if NextKmer == CorrectMotif:
+            NextKmer = NextKmerRight(Sequence, UpperBound, CorrectMotif)
+            UpperBound += len(CorrectMotif)
+        else:
+            Plus2Bound = UpperBound + (len(CorrectMotif))
+            if Plus2Bound < 0:
+                return (PerfectBounds[0], UpperBound)
+            KmerPlus2 = NextKmerRight(Sequence,Plus2Bound,CorrectMotif)
+            if KmerPlus2 == CorrectMotif:
+                UpperBound += (len(CorrectMotif)*(2))
+            else:
+                return (PerfectBounds[0], UpperBound)
+    return (PerfectBounds[0], UpperBound)
 
 import json
+import pprint
+
 def GenerateVariantCatalogEntry(Chromosome, InitialBounds, FinalBounds, CorrectMotif):
-    result = {
-        "VariantType": "Repeat",
-        "LocusId": str(Chromosome) + "_" + str(InitialBounds[0]) + "_" + str(InitialBounds[1]),
-        "LocusStructure": str(CorrectMotif) + "*",
-        "ReferenceRegion": str(Chromosome) + ":" + str(FinalBounds[0]) + "-" + str(FinalBounds[1]),
-    }
-    output = json.dumps(result, indent=4)
-    return json.dumps(result)
 
+    res = (
+            f"VariantType: Repeat", \
+            f"LocusId: {Chromosome}_{InitialBounds[0]}_{InitialBounds[1]}", \
+            f"LocusStructure: ({CorrectMotif})*", \
+            f"ReferenceRegion: {Chromosome}:{FinalBounds[0]}-{FinalBounds[1]}"
 
-#print(GenerateVariantCatalogEntry("chr1", (0,10), (5,7), "ABC"))
+            )
+    output = json.dumps(res, indent=4)
+    return output
 
-def FindFinalResult(Chromosome, Bounds, Motif):
-    Sequence = ExtractGenome(Chromosome, Bounds)
+def FindFinalResult(Chromosome, InitialBounds, Motif):
+    Sequence = ExtractGenome(Chromosome, InitialBounds)
+    print("Sequence Identified")
     CorrectMotif = GetCorrectMotif(Sequence, Motif)
-    print(CorrectMotif)
-    PerfectLength = FindPerfectLength(Sequence, CorrectMotif)
+    print(f"The correct motif is {CorrectMotif}")
     PerfectCoords = FindPerfectCoords(Sequence, CorrectMotif)
-    ExpandedCoordsLeft = ApplyHeuristic(Sequence, PerfectCoords, CorrectMotif)
+    print(f"The longest {CorrectMotif} stretch coordinates are: {PerfectCoords}")
+    ExpandedCoordsLeft = ApplyHeuristicLeft(Sequence, PerfectCoords, CorrectMotif)
     ExpandedCoordsRight = ApplyHeuristicRight(Sequence, ExpandedCoordsLeft, CorrectMotif)
-    return ExpandedCoordsRight
 
-#print(FindFinalResult("chr1",(57222577,57224042), "aaag"))
+    return GenerateVariantCatalogEntry(Chromosome, InitialBounds, ExpandedCoordsRight, CorrectMotif)
+
+print(FindFinalResult("chr1",(57222577,57224042), "aaag"))
 
 
 '''
 TO-DO:
-- Fix the coordinate inaccuracy with perfect coords
-- Figure out the heuristic addition --> the loops are messy
-- Figure out how to add spaces to the GenerateVariantCatalogEntry
-- Add print statements to FindFinalResult
-- Pep8 style
+- Pep8 styles
+- multiple catalog entries at once?
 '''
