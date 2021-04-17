@@ -1,32 +1,32 @@
 [
 	{
 		"VariantType": " Repeat",
-		"LocudID": "Liver-HCC",
-		"LocusStructure": "(TTTC)*",
-		"ReferenceRegion": "1:57223282-57223446"
+		"LocusId": "1_57222577_57224042",
+		"LocusStructure": "(CTTT)*",
+		"ReferenceRegion": "1:57223285-57223449"
 	},
 	{
 		"VariantType": "Repeat",
-		"LocusID": "Liver-HCC",
+		"LocusId": "1_84266630_84268313,
 		"LocusStructure": "(AAAG)*",
-		"ReferenceRegion": "1:84267443-84267510"
-
+		"ReferenceRegion": "1:84267444-84267511"
+		
 	},
 	{
 		"VariantType": "Repeat",
-		"LocusID": "Prost-AdenoCA,Liver-HCC,Ovary-AdenoCA",
+		"LocusID": "1:100147590_100150409",
 		"LocusStructure": "(AAAG)*",
-		"ReferenceRegion": "1:100148565-100148725"
+		"ReferenceRegion": "1:100148565-100148722"
 	},
 	{
 		"VariantType": "Repeat",
-		"LocusID": "Liver-HCC,Breast-AdenoCA",
+		"LocusID": "1:159946677-159946815",
 		"LocusStructure": "(AAAG)*",
 		"ReferenceRegion": "1:159946677-159946815"
 	},
 	{	
 		"VariantType": "Repeat",
-		"LocusID": "Liver-HCC",
+		"LocusID": "1:213536954-213537157",
 		"LocusStructure": "(TTTC*)",
 		"ReferenceRegion": "1:213536954-213537157"
 		NOTE: TTGC repeat found preceding repeat
@@ -36,6 +36,7 @@
 		"LocusID": "Breast-AdenoCA,Ovary-AdenoCA",
 		"LocusStructure": "(AAAGGAGGAGGGGGAGGG)*",
 		"ReferenceRegion": "1:224004954-224005097"
+		NOTE: 
 	aggaggagggggagagaaaggatgagggggaggg--aaaggaggagggggagggaaaggagg
 	agggggagggaaaggaggagggggagggaaaggaggagggggagggaaaggaggaggggg
 	agggaaaggaggagggggagggaaaggaggagggggagggaaaggaggagggggaggg--

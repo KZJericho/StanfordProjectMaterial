@@ -24,7 +24,7 @@ def GetCorrectMotif(Sequence, Motif):
 
     if MotifRepeat > ReverseMotifRepeat:
         #"The correct motif is:" +
-        return strMotif
+        return Motif
     else:
         return ReverseMotif
 
@@ -55,23 +55,7 @@ def FindPerfectCoords(Sequence, Motif):
             base += 1
 
     return (BestLocation,((BestLocation+((BestLength)*(len(Motif))))))
-'''
-FOR TESTING CODE ABOVE
-def FindRegion(Chromosome, Bounds, Motif):
-    ReverseComplement = GetReverseComplement(Motif)
-    print("RevComp=", ReverseComplement)
-    Sequence = ExtractGenome(Chromosome,Bounds)
-    print("Sequence:", Sequence)
-    CorrectMotif = GetCorrectMotif(Sequence,Motif)
-    print("CorrectMotif:", CorrectMotif)
 
-    return FindPerfectCoords(Sequence,CorrectMotif)
-print(FindRegion("chr1",(57222577,57224042), "aaag"))
-
-def FindPerfectLength(Sequence, Motif):
-    res = FindPerfectCoords(Sequence,Motif)
-    return (res[1]-res[0])+1
-'''
 def NextKmerLeft(Sequence, LowerBound, CorrectMotif):
         NextKmerLower = LowerBound - len(CorrectMotif)
         if NextKmerLower < 0:
@@ -100,7 +84,7 @@ def ApplyHeuristicLeft(Sequence, PerfectBounds, CorrectMotif):
     return (LowerBound, PerfectBounds[1])
 
 def NextKmerRight(Sequence, UpperBound, CorrectMotif):
-        NextKmerUpper = UpperBound + 1
+        NextKmerUpper = UpperBound
         if NextKmerUpper >= len(Sequence):
             return None
         else:
@@ -111,7 +95,6 @@ def ApplyHeuristicRight(Sequence, PerfectBounds, CorrectMotif):
 
     while UpperBound < len(Sequence):
         NextKmer = NextKmerRight(Sequence, UpperBound, CorrectMotif)
-
         if NextKmer == CorrectMotif:
             NextKmer = NextKmerRight(Sequence, UpperBound, CorrectMotif)
             UpperBound += len(CorrectMotif)
@@ -129,35 +112,97 @@ def ApplyHeuristicRight(Sequence, PerfectBounds, CorrectMotif):
 import json
 import pprint
 
-def GenerateVariantCatalogEntry(Chromosome, InitialBounds, FinalBounds, CorrectMotif):
+def FinalCoords(InitialBounds, FinalBounds):
+    LowerFinal = FinalBounds[0] + InitialBounds[0]
+    UpperFinal = FinalBounds[1] + InitialBounds[0] - 1
+    return (LowerFinal,UpperFinal)
 
-    res = (
-            f"VariantType: Repeat", \
-            f"LocusId: {Chromosome}_{InitialBounds[0]}_{InitialBounds[1]}", \
-            f"LocusStructure: ({CorrectMotif})*", \
-            f"ReferenceRegion: {Chromosome}:{FinalBounds[0]}-{FinalBounds[1]}"
+def GenerateVariantCatalogEntry(Chromosomes, InitBounds, FinBounds, CorrMotif):
 
-            )
-    output = json.dumps(res, indent=4)
-    return output
+    list_dicts = []
+    for Chromosome, InitialBounds, FinalBounds, CorrectMotif in zip(Chromosomes, InitBounds, FinBounds, CorrMotif):
+        res = {}
+        res["VariantType"] = "Repeat"
+        res["LocusId"] = "{0}_{1}_{2}".format(Chromosome, InitialBounds[0], InitialBounds[1])
+        res["LocusStructure"] = "({0})*".format(CorrectMotif.upper())
+        res["ReferenceRegion"] = "{0}:{1}-{2}".format(Chromosome,FinalBounds[0],FinalBounds[1])
+        list_dicts.append(res)
+    with open('/home/kevin/Documents/StanfordProjectMaterial/results.json', 'w') as outfile:
+        json.dump(list_dicts, outfile, indent=4)
+    return "done"
 
-def FindFinalResult(Chromosome, InitialBounds, Motif):
-    Sequence = ExtractGenome(Chromosome, InitialBounds)
-    print("Sequence Identified")
-    CorrectMotif = GetCorrectMotif(Sequence, Motif)
-    print(f"The correct motif is {CorrectMotif}")
-    PerfectCoords = FindPerfectCoords(Sequence, CorrectMotif)
-    print(f"The longest {CorrectMotif} stretch coordinates are: {PerfectCoords}")
-    ExpandedCoordsLeft = ApplyHeuristicLeft(Sequence, PerfectCoords, CorrectMotif)
-    ExpandedCoordsRight = ApplyHeuristicRight(Sequence, ExpandedCoordsLeft, CorrectMotif)
+def FindFinalResult(Chromosomes, InitialBounds, Motifs):
+    FinalCoordsList = []
+    CorrectMotifList = []
+    Count = len(Chromosomes)
+    i = 0
+    while i < Count:
+        Chromosome = Chromosomes[i]
+        InitialBound = InitialBounds[i]
+        Motif = Motifs[i]
+        print(InitialBound)
+        print("here")
+        Motif = Motif.lower()
+        Sequence = ExtractGenome(Chromosome, InitialBound)
+        #print("Sequence Identified")
+        CorrectMotif = GetCorrectMotif(Sequence, Motif)
+        #print(f"The correct motif is {CorrectMotif}")
+        PerfectCoords = FindPerfectCoords(Sequence, CorrectMotif)
+        #print(f"The longest {CorrectMotif} stretch coordinates are: {FinalCoords(InitialBounds,PerfectCoords)}")
+        ExpandedCoordsLeft = ApplyHeuristicLeft(Sequence, PerfectCoords, CorrectMotif)
+        ExpandedCoordsRight = ApplyHeuristicRight(Sequence, ExpandedCoordsLeft, CorrectMotif)
+        FinalCoord = FinalCoords(InitialBound, ExpandedCoordsRight)
+        FinalCoordsList.append(FinalCoord)
+        CorrectMotifList.append(CorrectMotif)
+        i += 1
+    return GenerateVariantCatalogEntry(Chromosomes, InitialBounds, FinalCoordsList, CorrectMotifList)
 
-    return GenerateVariantCatalogEntry(Chromosome, InitialBounds, ExpandedCoordsRight, CorrectMotif)
+#print(FindFinalResult(["chrX", "chrX"],[(1642529	,1644412), (1642529	,1644412)], ["ATCC", "ATCC"]))
 
-print(FindFinalResult("chr1",(57222577,57224042), "aaag"))
+
+import pandas as pd
+
+def RunTest():
+    Chromosomes = []
+    InitialBounds = []
+    Motifs = []
+
+    df = pd.read_csv('/home/kevin/Documents/StanfordProjectMaterial/CancerLoci30Annotations.bed', header=None, sep='\t')
+    df.columns = ["Chr","Start", "End", "STR", ""]
+    df = df.drop(columns=[""])
+
+    Chromosomes = df["Chr"].tolist()
+
+    Start = df["Start"].tolist()
+
+    End = df["End"].tolist()
+
+    Motifs = df["STR"].tolist()
+
+    Bounds = []
+
+    i = 0
+    while i < len(Start):
+        Bounds.append((Start[i],End[i]))
+        i += 1
+
+    FindFinalResult(Chromosomes, Bounds, Motifs)
+
+RunTest()
+
+
+#with open("v094_all_filtered_repeatloci_merged.bed") as file:
+#    lines = csv.reader(file, delimiter = “\t”)
+#    for line in lines:
+
 
 
 '''
 TO-DO:
 - Pep8 styles
 - multiple catalog entries at once?
+- do kmer minus 2 to be accepted
+- look into first and second longest being acceptable
+- variants allowed for longer repeat lengths
+
 '''
